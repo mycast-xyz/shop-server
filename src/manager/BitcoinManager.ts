@@ -1,89 +1,84 @@
 import * as fs from 'fs';
-import { ShopServerManager } from './ShopServerManager';
 
 export class BitcoinManager {
+  private static sInstance: BitcoinManager = null;
 
-	private static sInstance: BitcoinManager = null;
+  private static DEFAULT_PRICE: number = 100;
+  private static MINIMUM_RATE: number = -50;
+  private static MAXIMUM_RATE: number = 50;
 
-	private static DEFAULT_PRICE: number = 100;
-	private static MINIMUM_RATE: number = -50;
-	private static MAXIMUM_RATE: number = 50;
+  private mPrice: number;
 
-	private mPrice: number;
+  public static getInstance(): BitcoinManager {
+    if (this.sInstance === null) {
+      this.sInstance = new BitcoinManager();
+    }
+    return this.sInstance;
+  }
 
-	public static getInstance(): BitcoinManager {
-		if (this.sInstance === null) {
-			this.sInstance = new BitcoinManager();
-		}
-		return this.sInstance;
-	}
+  private constructor() {}
 
-	private constructor() {
+  public init() {
+    this.initCache();
+    this.initScheduler();
+  }
 
-	}
+  public getPrice() {
+    return this.mPrice;
+  }
 
-	public init() {
-		this.initCache();
-		this.initScheduler();
-	}
+  private initScheduler() {
+    let now = new Date().getTime();
+    let unit = 1 * 60 * 1000;
+    let next = unit - (now % unit);
 
-	public getPrice() { return this.mPrice; }
+    setTimeout(() => {
+      this.refreshCoinPrice();
+      this.initScheduler();
+    }, next);
+  }
 
-	private initScheduler() {
+  private refreshCoinPrice() {
+    const minimum = BitcoinManager.MINIMUM_RATE;
+    const maximum = BitcoinManager.MAXIMUM_RATE;
+    let ratePercent = Math.round(Math.random() * (maximum - minimum)) + minimum;
 
-		let now = new Date().getTime();
-		let unit = 1 * 60 * 1000;
-		let next = unit - (now % unit);
+    let nextPrice = Math.round((this.mPrice * (100 + ratePercent)) / 100);
+    this.setBitCoinPrice(nextPrice);
+    console.log(`Coin Price refreshed: ${nextPrice}`);
+  }
 
-		setTimeout(() => {
-			this.refreshCoinPrice();
-			this.initScheduler();
-		}, next);
-	}
+  private setBitCoinPrice(price: number) {
+    this.mPrice = price;
+    this.saveCache();
+  }
 
-	private refreshCoinPrice() {
-		const minimum = BitcoinManager.MINIMUM_RATE;
-		const maximum = BitcoinManager.MAXIMUM_RATE;
-		let ratePercent = Math.round(
-			Math.random() * (maximum - minimum)) + minimum;
+  private initCache() {
+    if (!fs.existsSync('cache/')) {
+      fs.mkdirSync('cache/');
+    }
+    if (fs.existsSync('cache/bitcoin')) {
+      this.loadCache();
+    } else {
+      this.setBitCoinPrice(BitcoinManager.DEFAULT_PRICE);
+    }
+  }
 
-		let nextPrice = Math.round(this.mPrice * (100 + ratePercent) / 100);
-		this.setBitCoinPrice(nextPrice);
-		console.log(`Coin Price refreshed: ${nextPrice}`);
-	}
+  private loadCache() {
+    if (!fs.existsSync('cache/')) {
+      fs.mkdirSync('cache/');
+    }
+    if (fs.existsSync('cache/bitcoin')) {
+      const data = fs.readFileSync('cache/bitcoin', 'utf-8');
+      this.mPrice = parseInt(data);
+      console.log(`Cache Load: ${this.mPrice}`);
+    }
+  }
 
-	private setBitCoinPrice(price: number) {
-		this.mPrice = price;
-		this.saveCache();
-	}
-
-	private initCache() {
-		if (!fs.existsSync('cache/')) {
-			fs.mkdirSync('cache/');
-		}
-		if (fs.existsSync('cache/bitcoin')) {
-			this.loadCache();
-		} else {
-			this.setBitCoinPrice(BitcoinManager.DEFAULT_PRICE);
-		}
-	}
-
-	private loadCache() {
-		if (!fs.existsSync('cache/')) {
-			fs.mkdirSync('cache/');
-		}
-		if (fs.existsSync('cache/bitcoin')) {
-			const data = fs.readFileSync('cache/bitcoin', 'utf-8');
-			this.mPrice = parseInt(data);
-			console.log(`Cache Load: ${this.mPrice}`);
-		}
-	}
-
-	private saveCache() {
-		if (!fs.existsSync('cache/')) {
-			fs.mkdirSync('cache/');
-		}
-		fs.writeFileSync('cache/bitcoin', `${this.mPrice}`);
-	}
-
+  private saveCache() {
+    if (!fs.existsSync('cache/')) {
+      fs.mkdirSync('cache/');
+    }
+    fs.writeFileSync('cache/bitcoin', `${this.mPrice}`);
+  }
 }
